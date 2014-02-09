@@ -2,6 +2,7 @@ package main
 
 import(
   "runtime/pprof"
+  "strconv"
   "os"
   "flag"
   "rache"
@@ -25,6 +26,8 @@ var testConfig = `
 `
 
 var prof = flag.String("prof", "", "write cpu profile to file")
+var limit = flag.String("limit", "1", "write cpu profile to file")
+//var fillcache = flagString("cache","false","prefill cache with values")
 
 func main(){
   flag.Parse()
@@ -51,15 +54,15 @@ func main(){
   done := make(chan bool)
 
   count := 0
-  limit := 100
-  for i:= 0; i < limit; i++ {
+  max,_ := strconv.Atoi(*limit)
+  for i:= 0; i < max; i++ {
     go route.Denormalize(done)
   }
 
   for {
     select {
     case <-done:
-      if count == limit-1 {
+      if count == max-1 {
         fmt.Println("quitting")
         os.Exit(1)
       }else{

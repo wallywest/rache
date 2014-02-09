@@ -1,0 +1,86 @@
+package rache
+
+import "log"
+
+type RouteSet struct{
+  Vlabel map[string]string
+  AppId int `app_id`
+  RouteSet map[string]interface{} `route_set`
+}
+
+type Segment struct{
+  Days string
+  StartTime string
+  EndTime string
+}
+
+type Allocation struct {
+  Percentage string
+  Destinations []Destination
+}
+
+type Destination struct {
+  Id string
+  Type string
+}
+
+func (r RouteSet) Denormalize() {
+  tree := r.RouteSet["tree"]
+  m := tree.(map[string]interface{})
+  for s, a:= range m {
+    seg := r.findSegment(s)
+    for _,id := range a.([]interface{}) {
+      allocation := r.findAllocation(id.(string))
+      r.buildEntries(seg,allocation)
+    }
+  }
+}
+
+func(r RouteSet) findAllocation(s string) *Allocation{
+  var alloc Allocation
+  allocations := r.RouteSet["allocations"].([]interface{})
+  for _,t := range allocations {
+    value := t.(map[string]interface{})
+    if value["id"] == s {
+      destinations := r.newDestinations(value["destinations"].([]interface{}))
+      alloc = Allocation{
+        Percentage:value["percentage"].(string),
+        Destinations:destinations,
+      }
+    }
+  }
+
+  return &alloc
+}
+
+func(r RouteSet) newDestinations(ds []interface{}) (destinations []Destination){
+  for _,destination := range ds {
+    d_interface := destination.(map[string]interface{})
+    d := &Destination{
+      Id:d_interface["destination_id"].(string),
+      Type:d_interface["type"].(string),
+    }
+    destinations = append(destinations,*d)
+  }
+  return
+}
+
+func(r RouteSet) findSegment(s string) *Segment{
+  var seg Segment
+  segments := r.RouteSet["segments"].([]interface{})
+  for _,t := range segments {
+    value := t.(map[string]interface{})
+    if value["id"] == s {
+      seg = Segment{
+        Days:value["days"].(string), 
+        StartTime:value["start_time"].(string),
+        EndTime:value["end_time"].(string),
+      }
+    }
+  }
+  return &seg
+}
+
+func(r RouteSet) buildEntries(seg *Segment, alloc *Allocation) {
+  log.Fatal
+}

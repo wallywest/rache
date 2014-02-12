@@ -103,7 +103,7 @@ func(r RouteSet) buildEntries(seg *Segment, alloc *Allocation) {
   }
 
   for i,d := range alloc.Destinations {
-    alloc_string := alloc.Percentage + "|" + d.Id + "|" + strconv.Itoa(i+1)
+    alloc_string := alloc.Percentage + "|" + d.Id + "|" + d.Type + "|" + strconv.Itoa(i+1)
     e.Value = append(e.Value,alloc_string)
   }
   r.EntryChan <- e

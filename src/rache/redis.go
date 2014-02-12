@@ -24,7 +24,7 @@ const(
   UUIDLen = 20
 )
 type RedisClient struct {
-  Conn *redis.Conn
+  Conn redis.Conn
   Logger seelog.LoggerInterface
 }
 
@@ -37,14 +37,14 @@ func NewRedisClient() *RedisClient{
     panic("NO REDIS")
   }
   client := new(RedisClient)
-  client.Conn = &conn
+  client.Conn = conn
   client.Logger = l
 
   return client
 }
 
 func(r *RedisClient) Info() {
-  reply, err := (*r.Conn).Do("INFO")
+  reply, err := (r.Conn).Do("INFO")
   if err != nil {
     fmt.Println(err)
   }
@@ -53,7 +53,7 @@ func(r *RedisClient) Info() {
 }
 
 func(r *RedisClient) Close() {
-  (*r.Conn).Close()
+  (r.Conn).Close()
 }
 
 func(r *RedisClient) FillCache(entry Entry) {
@@ -73,7 +73,7 @@ func(r *RedisClient) GenerateKey(entry Entry) (k string){
 }
 
 func(r *RedisClient) CheckDuplicateKey (md string) {
-  result,err := (*r.Conn).Do("EXISTS",md)
+  result,err := (r.Conn).Do("EXISTS",md)
   if err != nil {
     r.Logger.Info("Redis Error: ", err)
   }else{
@@ -91,7 +91,7 @@ func(r *RedisClient) GenerateIndexes(md string, entry Entry) {
 }
 
 func(r *RedisClient) AddIndex(key string, entry Entry){
-  _,err := (*r.Conn).Do("SADD",entry.VlabelIndex,key)
+  _,err := (r.Conn).Do("SADD",entry.VlabelIndex,key)
   if err != nil {
     fmt.Println(err)
     r.Logger.Error("Redis Error: ", err)
@@ -100,7 +100,7 @@ func(r *RedisClient) AddIndex(key string, entry Entry){
 }
 
 func(r *RedisClient) AddAppIdIndex(key string, entry Entry){
-  _,err := (*r.Conn).Do("SADD",entry.AppIdIndex,key)
+  _,err := (r.Conn).Do("SADD",entry.AppIdIndex,key)
   if err != nil {
     r.Logger.Error("Redis Error: ", err)
   }
@@ -111,8 +111,8 @@ func(r *RedisClient) AddAppIdIndex(key string, entry Entry){
 func(r *RedisClient) AddDayIndex (key string, entry Entry){
   score,_ := strconv.Atoi(entry.StartTime)
   score2,_ := strconv.Atoi(entry.EndTime)
-  _,err := (*r.Conn).Do("ZADD",entry.DayBinaryIndex,score,key)
-  _,err2 := (*r.Conn).Do("SADD",entry.DayBinaryIndex+":ranges",score,score2)
+  _,err := (r.Conn).Do("ZADD",entry.DayBinaryIndex,score,key)
+  _,err2 := (r.Conn).Do("SADD",entry.DayBinaryIndex+":ranges",score,score2)
   if err != nil {
     r.Logger.Debugf("Redis Error: %s", err)
   }
@@ -124,7 +124,7 @@ func(r *RedisClient) AddDayIndex (key string, entry Entry){
 
 func(r *RedisClient) AddValue(key string, entry Entry) {
   for _,e := range entry.Value{
-    _,err := (*r.Conn).Do("RPUSH",key,e)
+    _,err := (r.Conn).Do("RPUSH",key,e)
     if err != nil {
       r.Logger.Error("Redis Error: ", err)
     }

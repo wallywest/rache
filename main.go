@@ -2,7 +2,7 @@ package main
 
 import(
   "runtime/pprof"
-  "strconv"
+  //"strconv"
   "os"
   "flag"
   "rache"
@@ -34,7 +34,7 @@ func main(){
 
   config := []byte(testConfig)
 
-  logger := rache.NewLogger(config)
+  rache.NewLogger(config)
   defer rache.FlushLog()
 
   if *prof != "" {
@@ -49,36 +49,42 @@ func main(){
 
   session := setupDB()
   defer session.Close()
-  collection := session.DB(RACHE_DB).C(RACHE_COLLECTION)
-  route := findRouteSet(collection)
-  done := make(chan bool)
-  cache_entry := make(chan rache.Entry)
 
-  rc := rache.NewRedisClient()
-  defer rc.Close()
+  /*rc := rache.NewRedisClient()*/
+  /*defer rc.Close()*/
 
-  count := 0
-  max,_ := strconv.Atoi(*limit)
-  for i:= 0; i < max; i++ {
-    go route.Denormalize(done,cache_entry)
-  }
+  //collection := session.DB(RACHE_DB).C(RACHE_COLLECTION)
+  /*route := findRouteSet(collection)*/
+  //done := make(chan bool)
+  /*cache_entry := make(chan rache.Entry)*/
 
-  for {
-    select {
-    case entry := <- cache_entry:
-      rc.FillCache(entry)
-      go func(e rache.Entry) {
-       logger.Info(entry)
-      }(entry)
-    case <-done:
-      if count == max-1 {
-        fmt.Println("quitting")
-        os.Exit(1)
-      }else{
-        count = count + 1
-      }
-    }
-  }
+
+  /*count := 0*/
+  //max,_ := strconv.Atoi(*limit)
+  //for i:= 0; i < max; i++ {
+    //go route.Denormalize(done,cache_entry)
+  /*}*/
+
+  cache := rache.NewCache()
+  defer cache.Close()
+  rache.StartApi(cache)
+
+  /*for {*/
+    //select {
+    //case entry := <- cache_entry:
+      //rc.FillCache(entry)
+      //go func(e rache.Entry) {
+       //logger.Info(entry)
+      //}(entry)
+    //case <-done:
+      //if count == max-1 {
+        //fmt.Println("quitting")
+        //os.Exit(1)
+      //}else{
+        //count = count + 1
+      //}
+    //}
+  /*}*/
 }
 
 func setupDB() *mgo.Session{

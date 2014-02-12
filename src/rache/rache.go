@@ -2,37 +2,38 @@ package rache
 
 import (
   seelog "github.com/cihub/seelog"
-  "fmt"
   "strconv"
 )
 
 
-var logger seelog.LoggerInterface
+var Logger seelog.LoggerInterface
 
 type RouteSet struct{
   Vlabel map[string]string
   AppId int `app_id`
   RouteSet map[string]interface{} `route_set`
+  EntryChan chan Entry
 }
 
-func NewLogger(c []byte) {
-  l ,_ := seelog.LoggerFromConfigAsBytes(c)
-  logger = l
+func NewLogger(c []byte) (l seelog.LoggerInterface){
+  l ,_ = seelog.LoggerFromConfigAsBytes(c)
+  Logger = l
+  return
 }
 
 func FlushLog() {
-  logger.Flush()
+  Logger.Flush()
 }
 
-func (r RouteSet) Denormalize(done chan bool) {
-  vlabel_s := r.Vlabel["vlabel"]+"|"+strconv.Itoa(r.AppId)
+func (r RouteSet) Denormalize(done chan bool, cache_chan chan Entry) {
+  r.EntryChan = cache_chan
   tree := r.RouteSet["tree"]
   m := tree.(map[string]interface{})
   for s, a:= range m {
     seg := r.findSegment(s)
     for _,id := range a.([]interface{}) {
       allocation := r.findAllocation(id.(string))
-      r.buildEntries(vlabel_s,seg,allocation)
+      r.buildEntries(seg,allocation)
     }
   }
   done <- true
@@ -84,10 +85,26 @@ func(r RouteSet) findSegment(s string) *Segment{
   return &seg
 }
 
-func(r RouteSet) buildEntries(vlabel string, seg *Segment, alloc *Allocation) {
-  entry := vlabel + seg.formattedString()
-  for i,d := range alloc.Destinations {
-    alloc_string := "|" + alloc.Percentage + "|" + d.Id + "|" + strconv.Itoa(i+1)
-    fmt.Println(entry + alloc_string)
+func(r RouteSet) buildEntries(seg *Segment, alloc *Allocation) {
+  var allocs []string
+  key :=   r.Vlabel["vlabel"] + strconv.Itoa(r.AppId) + seg.bitDays() + seg.StartTime
+  vlabelindex := "index:"+r.Vlabel["vlabel"]
+  appidindex := "index:"+r.Vlabel["vlabel"] + ":" + strconv.Itoa(r.AppId)
+  dayindex:= "index:"+r.Vlabel["vlabel"] + ":" + strconv.Itoa(r.AppId) + ":" + seg.bitDays()
+
+  e := Entry{
+    Key: key,
+    VlabelIndex: vlabelindex,
+    AppIdIndex: appidindex,
+    DayBinaryIndex: dayindex,
+    StartTime: seg.StartTime,
+    EndTime: seg.EndTime,
+    Value: allocs,
   }
+
+  for i,d := range alloc.Destinations {
+    alloc_string := alloc.Percentage + "|" + d.Id + "|" + strconv.Itoa(i+1)
+    e.Value = append(e.Value,alloc_string)
+  }
+  r.EntryChan <- e
 }

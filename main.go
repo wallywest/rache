@@ -34,7 +34,7 @@ func main(){
 
   config := []byte(testConfig)
 
-  rache.NewLogger(config)
+  logger := rache.NewLogger(config)
   defer rache.FlushLog()
 
   if *prof != "" {
@@ -52,15 +52,24 @@ func main(){
   collection := session.DB(RACHE_DB).C(RACHE_COLLECTION)
   route := findRouteSet(collection)
   done := make(chan bool)
+  cache_entry := make(chan rache.Entry)
+
+  rc := rache.NewRedisClient()
+  defer rc.Close()
 
   count := 0
   max,_ := strconv.Atoi(*limit)
   for i:= 0; i < max; i++ {
-    go route.Denormalize(done)
+    go route.Denormalize(done,cache_entry)
   }
 
   for {
     select {
+    case entry := <- cache_entry:
+      rc.FillCache(entry)
+      go func(e rache.Entry) {
+       logger.Info(entry)
+      }(entry)
     case <-done:
       if count == max-1 {
         fmt.Println("quitting")

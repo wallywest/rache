@@ -4,6 +4,16 @@ import (
   "strconv"
 )
 
+type Entry struct {
+  Key string
+  VlabelIndex string
+  AppIdIndex string
+  DayBinaryIndex string
+  StartTime string
+  EndTime string
+  Value []string
+}
+
 type Segment struct{
   Days string
   StartTime string
@@ -21,7 +31,7 @@ type Destination struct {
 }
 
 func(s Segment) formattedString() (formatted string) {
-  formatted = "|" + s.bitDays() + "|" + s.StartTime + "|" + s.EndTime
+  formatted = s.StartTime + "|" + s.EndTime
   return
 }
 

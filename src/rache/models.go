@@ -11,7 +11,7 @@ type Entry struct {
   DayBinaryIndex string
   StartTime string
   EndTime string
-  Value []string
+  Value []DestinationRoute
 }
 
 type Segment struct{
@@ -30,6 +30,17 @@ type Destination struct {
   Type string
 }
 
+type DestinationRoute struct {
+  Percentage string `redis:"percentage"`
+  Route_order string `redis:"route_order"`
+  Destination []byte `redis:"destination"`
+}
+
+type DestinationRouteJson struct {
+  Percentage string `json:"percentage"`
+  Route_order string `json:"route_order"`
+  Destination map[string]string `json:"destination"`
+}
 func(s Segment) formattedString() (formatted string) {
   formatted = s.StartTime + "|" + s.EndTime
   return

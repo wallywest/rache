@@ -169,15 +169,23 @@ func(c *Cache) findRouteSet() (rs RouteSet){
 }
 
 func(c *Cache) Save(entry Entry) {
+  var mds []string
   defer TimeTrack(time.Now(), "Saving to Cache")
   for _,e := range entry.Value{
     md := c.GenerateKey()
-    c.GenerateIndexes(md,entry)
+    //c.GenerateIndexes(md,entry)
     c.AddValue(md,e)
+    mds = append(mds,md)
+  }
+  c.AddToIndexes(mds,entry)
+  e := c.Conn.Flush()
+  if e != nil {
+      c.Logger.Errorf("Flush error is %s",e)
   }
 }
 
 func(c *Cache) GenerateKey() (k string){
+  defer TimeTrack(time.Now(), "Generating Key")
   k = uniuri.NewLen(UUIDLen)
   /*key := sha1.New()*/
   //io.WriteString(key,key_str)
@@ -199,48 +207,30 @@ func(c *Cache) CheckDuplicateKey (md string) {
   }
 }
 
-func(c *Cache) GenerateIndexes(md string, entry Entry) {
-  c.AddIndex(md,entry)
-  c.AddAppIdIndex(md,entry)
-  c.AddDayIndex(md,entry)
+//func(c *Cache) GenerateIndexes(md string, entry Entry) {
+func(c *Cache) AddToIndexes(mds []string, entry Entry) {
+  c.AddIndex(mds,entry)
+  c.AddAppIdIndex(mds,entry)
+  c.AddDayIndex(mds,entry)
 }
 
-func(c *Cache) AddIndex(key string, entry Entry){
-  _,err := (c.Conn).Do("SADD",entry.VlabelIndex,key)
-  if err != nil {
-    fmt.Println(err)
-    c.Logger.Error("Redis Error: ", err)
-  }
-  return
+func(c *Cache) AddIndex(keys []string, entry Entry){
+  (c.Conn).Send("SADD",entry.VlabelIndex,keys)
 }
 
-func(c *Cache) AddAppIdIndex(key string, entry Entry){
-  _,err := (c.Conn).Do("SADD",entry.AppIdIndex,key)
-  if err != nil {
-    c.Logger.Error("Redis Error: ", err)
-  }
-  return
+func(c *Cache) AddAppIdIndex(keys []string, entry Entry){
+  (c.Conn).Send("SADD",entry.AppIdIndex,keys)
 }
 
 
-func(c *Cache) AddDayIndex (key string, entry Entry){
+func(c *Cache) AddDayIndex (keys []string, entry Entry){
   score,_ := strconv.Atoi(entry.StartTime)
   score2,_ := strconv.Atoi(entry.EndTime)
-  _,err := (c.Conn).Do("ZADD",entry.DayBinaryIndex,score,key)
-  _,err2 := (c.Conn).Do("SADD",entry.DayBinaryIndex+":ranges",score,score2)
-  if err != nil {
-    c.Logger.Debugf("Redis Error: %s", err)
-  }
-  if err2 != nil {
-    c.Logger.Debugf("Redis Error: %s", err2)
-  }
-  return
+  (c.Conn).Send("ZADD",entry.DayBinaryIndex,score,keys)
+  (c.Conn).Send("SADD",entry.DayBinaryIndex+":ranges",score,score2)
 }
 
 func(c *Cache) AddValue(key string, e DestinationRoute) {
   c.Logger.Infof("Hash is %s",e)
-  _,err := (c.Conn).Do("HMSET",key,"percentage",e.Percentage,"route_order",e.Route_order,"destination",e.Destination)
-  if err != nil {
-    c.Logger.Error("Redis Error: ", err)
-  }
+  (c.Conn).Send("HMSET",key,"percentage",e.Percentage,"route_order",e.Route_order,"destination",e.Destination)
 }

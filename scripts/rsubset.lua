@@ -1,12 +1,11 @@
-package rache
-
-var luaRanges = `
 local minute = tonumber(ARGV[1])
 local set = ARGV[2]
-local values = ARGV[3]
+local daySet = ARGV[3]
 local ranges = {}
 local out = {}
 local ranges = redis.call("smembers",set)
+local dayranges = {}
+
 for k,v in pairs(ranges) do
   local i = tonumber(v)
   out[k] = i
@@ -30,14 +29,12 @@ for i,v in pairs(out) do
     break
   end
   count = i
-  print("running through loop")
 end
 if lookup == -1 then 
   lookup = out[count]
 end
+print(lookup)
 
+dayranges = redis.call("zrangebyscore",daySet,lookup,lookup)
 
-local results = redis.call("ZRANGEBYSCORE",values,lookup,lookup)
-
-return results
-`
+return dayranges

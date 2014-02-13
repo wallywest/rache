@@ -1,9 +1,11 @@
 package rache
 
 import (
+  "time"
   "github.com/garyburd/redigo/redis"
   "github.com/dchest/uniuri"
   "fmt"
+  "encoding/json"
   seelog "github.com/cihub/seelog"
   "labix.org/v2/mgo"
   "labix.org/v2/mgo/bson"
@@ -57,11 +59,11 @@ func(c *Cache) Close() {
   c.Session.Close()
 }
 
-func(c *Cache) Get(v string, appid string, ts string) {
+func(c *Cache) Get(v string, appid string, ts string) []DestinationRouteJson{
   bday,minute := UnixTimeToSegment(ts)
   rkey := c.rangeKey(v,appid,bday)
   dkey := c.dayKey(v,appid,bday)
-  c.findDay(minute,rkey,dkey)
+  return c.findDay(minute,rkey,dkey)
 }
 
 func(c *Cache) rangeKey(v string, appid string, bday string) (key string){
@@ -73,7 +75,7 @@ func(c *Cache) dayKey(v string, appid string, bday string) (key string){
   return
 }
 
-func(c *Cache) findDay(m int, rindex string, dindex string) {
+func(c *Cache) findDay(m int, rindex string, dindex string) (results []DestinationRouteJson){
   var getScript = redis.NewScript(1,luaRanges)
   result,err := getScript.Do(c.Conn,0,m,rindex,dindex)
   c.Logger.Infof("%v %s %s",m,rindex,dindex)
@@ -84,16 +86,46 @@ func(c *Cache) findDay(m int, rindex string, dindex string) {
   if result == nil {
     c.Logger.Error("Null result")
   } else {
-    r := result.([]interface{})
-    if len(r) == 0 {
-      c.Logger.Infof("Filling cache for for %s",dindex)
-      c.fillCache()
-    } else{
-      for _,value := range r {
-        c.Logger.Infof("Lookup found %s",string(value.([]byte)))
+    switch result.(type) {
+    case []interface{}:
+      r := result.([]interface{})
+      if len(r) == 0 {
+        c.Logger.Infof("Filling cache for for %s",dindex)
+        c.fillCache()
+      } else{
+        c.findRoutes(r,results)
       }
+    case redis.Error:
+      c.fillCache()
     }
   }
+  return
+}
+
+func(c *Cache) findRoutes(r []interface{}, d []DestinationRouteJson) {
+  defer TimeTrack(time.Now(), "Route Lookup")
+  for _,value := range r {
+    s := string(value.([]byte))
+    c.Logger.Infof("Lookup found %s",string(value.([]byte)))
+    rd := c.findRoute(s)
+    d = append(d,rd)
+  }
+}
+
+func(c *Cache) findRoute(key string) DestinationRouteJson{
+  var d DestinationRoute
+  reply, _ := redis.Values(c.Conn.Do("HGETALL",key))
+  redis.ScanStruct(reply,&d)
+  var destination map[string]string
+  json.Unmarshal(d.Destination,&destination)
+  djson := DestinationRouteJson{
+    Percentage: d.Percentage,
+    Route_order: d.Route_order,
+    Destination: destination,
+  }
+
+  //d.Destination = destination
+  return djson
 }
 
 func(c *Cache) fillCache() {
@@ -126,6 +158,7 @@ func setupDB() *mgo.Session{
 }
 
 func(c *Cache) findRouteSet() (rs RouteSet){
+  defer TimeTrack(time.Now(), "Query Mongo")
   collection := c.Session.DB(RACHE_DB).C(RACHE_COLLECTION)
   q := bson.M{"app_id":8245,"vlabel.vlabel":"18181818181"}
   err := collection.Find(q).One(&rs)
@@ -136,12 +169,15 @@ func(c *Cache) findRouteSet() (rs RouteSet){
 }
 
 func(c *Cache) Save(entry Entry) {
-  md := c.GenerateKey(entry)
-  c.GenerateIndexes(md,entry)
-  c.AddValue(md,entry)
+  defer TimeTrack(time.Now(), "Saving to Cache")
+  for _,e := range entry.Value{
+    md := c.GenerateKey()
+    c.GenerateIndexes(md,entry)
+    c.AddValue(md,e)
+  }
 }
 
-func(c *Cache) GenerateKey(entry Entry) (k string){
+func(c *Cache) GenerateKey() (k string){
   k = uniuri.NewLen(UUIDLen)
   /*key := sha1.New()*/
   //io.WriteString(key,key_str)
@@ -201,11 +237,10 @@ func(c *Cache) AddDayIndex (key string, entry Entry){
   return
 }
 
-func(c *Cache) AddValue(key string, entry Entry) {
-  for _,e := range entry.Value{
-    _,err := (c.Conn).Do("RPUSH",key,e)
-    if err != nil {
-      c.Logger.Error("Redis Error: ", err)
-    }
+func(c *Cache) AddValue(key string, e DestinationRoute) {
+  c.Logger.Infof("Hash is %s",e)
+  _,err := (c.Conn).Do("HMSET",key,"percentage",e.Percentage,"route_order",e.Route_order,"destination",e.Destination)
+  if err != nil {
+    c.Logger.Error("Redis Error: ", err)
   }
 }

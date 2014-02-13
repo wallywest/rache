@@ -28,3 +28,8 @@ func HourToMinutes(hour int) (m int){
   return
 }
 
+func TimeTrack(start time.Time, name string) {
+  elapsed := time.Since(start)
+  Logger.Infof("%s took %s",name,elapsed)
+}
+

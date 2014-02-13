@@ -1,6 +1,8 @@
 package rache
 
 import (
+  "time"
+  "encoding/json"
   seelog "github.com/cihub/seelog"
   "strconv"
 )
@@ -26,6 +28,7 @@ func FlushLog() {
 }
 
 func (r RouteSet) Denormalize(done chan bool, cache_chan chan Entry) {
+  defer TimeTrack(time.Now(), "Denormalizing Routeset")
   r.EntryChan = cache_chan
   tree := r.RouteSet["tree"]
   m := tree.(map[string]interface{})
@@ -86,7 +89,7 @@ func(r RouteSet) findSegment(s string) *Segment{
 }
 
 func(r RouteSet) buildEntries(seg *Segment, alloc *Allocation) {
-  var allocs []string
+  var allocs []DestinationRoute
   key :=   r.Vlabel["vlabel"] + strconv.Itoa(r.AppId) + seg.bitDays() + seg.StartTime
   vlabelindex := "index:"+r.Vlabel["vlabel"]
   appidindex := "index:"+r.Vlabel["vlabel"] + ":" + strconv.Itoa(r.AppId)
@@ -103,8 +106,18 @@ func(r RouteSet) buildEntries(seg *Segment, alloc *Allocation) {
   }
 
   for i,d := range alloc.Destinations {
-    alloc_string := alloc.Percentage + "|" + d.Id + "|" + d.Type + "|" + strconv.Itoa(i+1)
-    e.Value = append(e.Value,alloc_string)
+    j,_ := json.Marshal(map[string]string{
+      "id": d.Id,
+      "type": d.Type,
+    })
+
+    droute := DestinationRoute{
+      Percentage: alloc.Percentage,
+      Route_order: strconv.Itoa(i+1),
+      Destination: j,
+    }
+    //alloc_string := alloc.Percentage + "|" + d.Id + "|" + d.Type + "|" + strconv.Itoa(i+1)
+    e.Value = append(e.Value,droute)
   }
   r.EntryChan <- e
 }

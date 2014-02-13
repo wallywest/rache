@@ -1,9 +1,5 @@
-package rache
-
-var luaRanges = `
 local minute = tonumber(ARGV[1])
 local set = ARGV[2]
-local values = ARGV[3]
 local ranges = {}
 local out = {}
 local ranges = redis.call("smembers",set)
@@ -36,8 +32,4 @@ if lookup == -1 then
   lookup = out[count]
 end
 
-
-local results = redis.call("ZRANGEBYSCORE",values,lookup,lookup)
-
-return results
-`
+return lookup

@@ -36,6 +36,10 @@ type DestinationRoute struct {
   Destination []byte `redis:"destination"`
 }
 
+type DestinationCollection struct {
+  Destinations []DestinationRouteJson `json:"destinations"`
+}
+
 type DestinationRouteJson struct {
   Percentage string `json:"percentage"`
   Route_order string `json:"route_order"`

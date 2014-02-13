@@ -16,8 +16,11 @@ func RouteSetHandler(w http.ResponseWriter, r *http.Request) {
   app_id := params.Get("app_id")
   ts := params.Get("time")
   values := cache.Get(vlabel,app_id,ts)
+  v := map[string][]DestinationRouteJson{
+    "destinations":values,
+  }
   enc := json.NewEncoder(w)
-  enc.Encode(values)
+  enc.Encode(v)
 }
 
 func CacheHandler(w http.ResponseWriter, r *http.Request) {

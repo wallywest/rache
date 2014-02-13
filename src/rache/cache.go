@@ -93,7 +93,8 @@ func(c *Cache) findDay(m int, rindex string, dindex string) (results []Destinati
         c.Logger.Infof("Filling cache for for %s",dindex)
         c.fillCache()
       } else{
-        c.findRoutes(r,results)
+        results = c.findRoutes(r)
+        c.Logger.Infof("Found results %s",results)
       }
     case redis.Error:
       c.fillCache()
@@ -102,20 +103,23 @@ func(c *Cache) findDay(m int, rindex string, dindex string) (results []Destinati
   return
 }
 
-func(c *Cache) findRoutes(r []interface{}, d []DestinationRouteJson) {
+func(c *Cache) findRoutes(r []interface{}) (d []DestinationRouteJson){
   defer TimeTrack(time.Now(), "Route Lookup")
   for _,value := range r {
     s := string(value.([]byte))
     c.Logger.Infof("Lookup found %s",string(value.([]byte)))
     rd := c.findRoute(s)
+    c.Logger.Infof("Json route %v",rd)
     d = append(d,rd)
   }
+  return d
 }
 
 func(c *Cache) findRoute(key string) DestinationRouteJson{
   var d DestinationRoute
   reply, _ := redis.Values(c.Conn.Do("HGETALL",key))
   redis.ScanStruct(reply,&d)
+  c.Logger.Infof("Destination Route %v",d)
   var destination map[string]string
   json.Unmarshal(d.Destination,&destination)
   djson := DestinationRouteJson{
@@ -226,7 +230,9 @@ func(c *Cache) AddAppIdIndex(keys []string, entry Entry){
 func(c *Cache) AddDayIndex (keys []string, entry Entry){
   score,_ := strconv.Atoi(entry.StartTime)
   score2,_ := strconv.Atoi(entry.EndTime)
-  (c.Conn).Send("ZADD",entry.DayBinaryIndex,score,keys)
+  for _,k := range keys {
+    (c.Conn).Send("ZADD",entry.DayBinaryIndex,score,k)
+  }
   (c.Conn).Send("SADD",entry.DayBinaryIndex+":ranges",score,score2)
 }
 

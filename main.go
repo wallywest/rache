@@ -38,13 +38,10 @@ func main(){
     defer pprof.StopCPUProfile()
   }
 
-  /*count := 0*/
-  //max,_ := strconv.Atoi(*limit)
-  //for i:= 0; i < max; i++ {
-    //go route.Denormalize(done,cache_entry)
-  /*}*/
+  dmap := rache.NewDestinationMap()
 
-  cache := rache.NewCache()
+  cache := rache.NewCache(dmap)
+
   defer cache.Close()
   rache.StartApi(cache)
 }

@@ -43,7 +43,7 @@ type DestinationCollection struct {
 type DestinationRouteJson struct {
   Percentage string `json:"percentage"`
   Route_order string `json:"route_order"`
-  Destination map[string]string `json:"destination"`
+  Destination DestinationProperty `json:"destination"`
 }
 func(s Segment) formattedString() (formatted string) {
   formatted = s.StartTime + "|" + s.EndTime

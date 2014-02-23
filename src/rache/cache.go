@@ -32,9 +32,10 @@ type Cache struct {
   Conn redis.Conn
   Logger seelog.LoggerInterface
   Session *mgo.Session
+  DestinationMap DestinationMap
 }
 
-func NewCache() (cache *Cache){
+func NewCache(dmap DestinationMap) (cache *Cache){
   config := []byte(cacheLogConfig)
   l ,_ := seelog.LoggerFromConfigAsBytes(config)
   session := setupDB()
@@ -43,7 +44,7 @@ func NewCache() (cache *Cache){
   if err != nil {
     panic("NO REDIS")
   }
-  cache = &Cache{Conn:c, Logger:l, Session:session}
+  cache = &Cache{Conn:c, Logger:l, Session:session, DestinationMap: dmap}
   return
 }
 
@@ -94,7 +95,7 @@ func(c *Cache) findDay(m int, rindex string, dindex string) (results []Destinati
         c.fillCache()
       } else{
         results = c.findRoutes(r)
-        c.Logger.Infof("Found results %s",results)
+        c.Logger.Infof("Found results %v",results)
       }
     case redis.Error:
       c.fillCache()
@@ -109,7 +110,7 @@ func(c *Cache) findRoutes(r []interface{}) (d []DestinationRouteJson){
     s := string(value.([]byte))
     c.Logger.Infof("Lookup found %s",string(value.([]byte)))
     rd := c.findRoute(s)
-    c.Logger.Infof("Json route %v",rd)
+    c.Logger.Infof("Json route %v",&rd)
     d = append(d,rd)
   }
   return d
@@ -122,10 +123,13 @@ func(c *Cache) findRoute(key string) DestinationRouteJson{
   c.Logger.Infof("Destination Route %v",d)
   var destination map[string]string
   json.Unmarshal(d.Destination,&destination)
+  property := c.DestinationMap.findDestination(destination["id"],destination["type"])
+
+  //c.Logger.Infof("proerpties %v",property)
   djson := DestinationRouteJson{
     Percentage: d.Percentage,
     Route_order: d.Route_order,
-    Destination: destination,
+    Destination: *property,
   }
 
   //d.Destination = destination
@@ -174,7 +178,7 @@ func(c *Cache) findRouteSet() (rs RouteSet){
 
 func(c *Cache) Save(entry Entry) {
   var mds []string
-  defer TimeTrack(time.Now(), "Saving to Cache")
+  //defer TimeTrack(time.Now(), "Saving to Cache")
   for _,e := range entry.Value{
     md := c.GenerateKey()
     //c.GenerateIndexes(md,entry)
@@ -189,7 +193,7 @@ func(c *Cache) Save(entry Entry) {
 }
 
 func(c *Cache) GenerateKey() (k string){
-  defer TimeTrack(time.Now(), "Generating Key")
+  //defer TimeTrack(time.Now(), "Generating Key")
   k = uniuri.NewLen(UUIDLen)
   /*key := sha1.New()*/
   //io.WriteString(key,key_str)

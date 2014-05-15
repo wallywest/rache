@@ -8,6 +8,14 @@ import (
 )
 
 
+var testConfig = `
+<seelog>
+<outputs>
+<file path="./log/rache.log"/>
+</outputs>
+</seelog>
+`
+
 var Logger seelog.LoggerInterface
 
 type RouteSet struct{
@@ -23,9 +31,23 @@ func NewLogger(c []byte) (l seelog.LoggerInterface){
   return
 }
 
-func FlushLog() {
+func Run() {
+  config := []byte(testConfig)
+
+  NewLogger(config)
+  dmap := NewDestinationMap()
+  cache := NewCache(dmap)
+
+  defer cache.Close()
+  defer ShutDown()
+
+  StartApi(cache)
+}
+
+func ShutDown() {
   Logger.Flush()
 }
+
 
 func (r RouteSet) Denormalize(done chan bool, cache_chan chan Entry) {
   defer TimeTrack(time.Now(), "Denormalizing Routeset")

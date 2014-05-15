@@ -1,31 +1,28 @@
 package rache
 
 import (
-  "net/http"
-  "github.com/bmizerany/pat"
+  //"net/http"
+  //"github.com/bmizerany/pat"
+  "github.com/go-martini/martini"
 )
 
-const addr = ":9000"
+//const addr = ":9000"
 
 var cache *Cache
 
 func StartApi(c *Cache) {
   cache = c
-
-  setupHandlers()
-
-  panic(http.ListenAndServe(":9000", nil))
+  //setupHandlers()
+  //panic(http.ListenAndServe(":9000", nil))
+  m := martini.Classic()
+  setupHandlers(m)
+  m.Run()
 }
 
-func setupHandlers() {
-  m := pat.New()
-  m.Get("/routeset",http.HandlerFunc(RouteSetHandler))
-  http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-    w.Header().Add("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate")
-    w.Header().Add("X-Frame-Options", "DENY")
-    w.Header().Add("X-Content-Type-Options", "nosniff")
-    w.Header().Add("X-XSS-Protection", "1; mode=block")
-    // ok, now we're ready to serve the request.
-    m.ServeHTTP(w, r)
-  })
+func setupHandlers(m *martini.ClassicMartini) {
+  //m.Get("/routeset",RouteSetIndexHandler)
+  //m.Get("/routeset/:app_id",RouteSetGetHandler)
+  m.Get("/routeset/:app_id/:route",RouteSetGetHandler)
+  m.Post("/routeset/:app_id/:route",RouteSetPostHandler)
+  m.Delete("/routeset/:app_id/:route",RouteSetDeleteHandler)
 }
